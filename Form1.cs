@@ -405,40 +405,52 @@ namespace AIMHEAD_ON_OFF
             {
                 UpdateLabel("Emulator Not Found!", Color.Red);
                 Console.Beep(240, 300);
+                return;
             }
-            else
+
+            UpdateLabel("Activating NO RECOIL...", Color.Orange);
+
+            try
             {
-                UpdateLabel("Activating NO RECOIL...", Color.Orange);
+                Memory.SetProcess(TaskName);
 
                 string search = "00 00 00 00 00 00 80 40 00 00 00 00 00 00 00 00 00 00 80 BF 00 00 00 00 00 00 80 BF 00 00 00 00 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 80 BF";
                 string replace = "00 00 00 00 00 00 80 3f 00 00 00 00 00 00 00 00 00 00 80 bf 00 00 00 00 00 00 80 bf 00 00 00 00 00 00 00 00 00 00 80 3f 00 00 00 00 00 00 00 00";
 
-                bool k = false;
-                Memory.SetProcess(TaskName);
-
-                int i2 = 22000000;
-                IEnumerable<long> wl = await Memory.AoBScan(search, writable: true, true);
-                string u = "0x" + wl.FirstOrDefault().ToString("X");
-                if (wl.Count() != 0)
+                IEnumerable<long> results = await Memory.AoBScan(search);
+                
+                if (results != null && results.Any())
                 {
-                    for (int i = 0; i < wl.Count(); i++)
+                    int patchCount = 0;
+                    foreach (long address in results)
                     {
-                        i2++;
-                        Memory.WriteMemory(wl.ElementAt(i).ToString("X"), "bytes", replace);
+                        if (Memory.AobReplace(address, replace))
+                        {
+                            patchCount++;
+                        }
                     }
-                    k = true;
-                }
 
-                if (k == true)
-                {
-                    Console.Beep(400, 300);
-                    UpdateLabel("NO RECOIL Injected!", Color.Green);
+                    if (patchCount > 0)
+                    {
+                        Console.Beep(400, 300);
+                        UpdateLabel($"NO RECOIL Injected! ({patchCount} patches applied)", Color.Green);
+                    }
+                    else
+                    {
+                        Console.Beep(240, 300);
+                        UpdateLabel("NO RECOIL Failed - Patch error", Color.Red);
+                    }
                 }
                 else
                 {
                     Console.Beep(240, 300);
-                    UpdateLabel("NO RECOIL Failed", Color.Red);
+                    UpdateLabel("NO RECOIL Failed - Pattern not found", Color.Red);
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.Beep(240, 300);
+                UpdateLabel($"NO RECOIL Error: {ex.Message}", Color.Red);
             }
         }
 
